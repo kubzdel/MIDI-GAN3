@@ -9,19 +9,20 @@ class Discriminator(tf.keras.Model):
     # additional regularization like dropout to prevent from pixel attacks
     self.image_encoder = tf.keras.Sequential([
         # conv with stride (out = 14x14)
-        tf.keras.layers.Conv2D(64, 5, 2, 'same'),
-        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.Conv3D(64, 5, 2, 'same',input_shape=(5,4,24,84), data_format='channels_first'),
+        tf.keras.layers.BatchNormalization(axis=1),
         tf.keras.layers.ReLU(),
         tf.keras.layers.Dropout(0.3),
+        #2,2,12
         # conv with steide (out = 7x7)
-        tf.keras.layers.Conv2D(128, 3, 2, 'same'),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.ReLU(),
-        tf.keras.layers.Dropout(0.3),
-        # flatten + hidden layer
+        # tf.keras.layers.Conv3D(128, 3, 2, 'same'),
+        # tf.keras.layers.BatchNormalization(),
+        # tf.keras.layers.ReLU(),
+        # tf.keras.layers.Dropout(0.3),
+        # # flatten + hidden layer
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(128),
-        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.BatchNormalization(axis=1),
         tf.keras.layers.ReLU(),
         tf.keras.layers.Dropout(0.3),
         # prediction (LOGITS!)
@@ -38,28 +39,28 @@ class Generator(tf.keras.Model):
 
     self.noise_decoder = tf.keras.Sequential([
         # flat
-        tf.keras.layers.Dense(7*7*256),
+        tf.keras.layers.Dense(5*2*12*42),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.ReLU(),
-        tf.keras.layers.Reshape([7, 7, 256]),
+        tf.keras.layers.Reshape([5,2,12,42]),
         # conv without stride (7x7)
-        tf.keras.layers.Conv2D(128, 5, 1, 'same'),
-        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.Conv3D(128, 5, 1, 'same',data_format='channels_first'),
+        tf.keras.layers.BatchNormalization(axis=1),
         tf.keras.layers.ReLU(),
-        # t_conv with stride (14x14)
-        tf.keras.layers.Conv2DTranspose(64, 5, 2, 'same'),
-        tf.keras.layers.BatchNormalization(),
+        # # t_conv with stride (14x14)
+        tf.keras.layers.Conv3DTranspose(64, 5, 2, 'same',data_format='channels_first'),
+        tf.keras.layers.BatchNormalization(axis=1),
         tf.keras.layers.ReLU(),
-        # conv without stride (14x14)
-        tf.keras.layers.Conv2D(32, 5, 1, 'same'),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.ReLU(),
-        # t_conv with stride (28x28)
-        tf.keras.layers.Conv2DTranspose(32, 5, 2, 'same'),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.ReLU(),
-        # conv without stride
-        tf.keras.layers.Conv2D(1, 5, 1, 'same')
+        # # conv without stride (14x14)
+        # # tf.keras.layers.Conv3D(32, 5, 1, 'same'),
+        # # tf.keras.layers.BatchNormalization(),
+        # # tf.keras.layers.ReLU(),
+        # # t_conv with stride (28x28)
+        # # tf.keras.layers.Conv3DTranspose(32, 5, 2, 'same'),
+        # # tf.keras.layers.BatchNormalization(),
+        # # tf.keras.layers.ReLU(),
+        # # conv without stride
+        tf.keras.layers.Conv3D(5, 5, 1, 'same',data_format='channels_first')
     ])
 
   def call(self, noise, training):

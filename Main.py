@@ -6,9 +6,6 @@ import os.path
 import pypianoroll as piano
 import numpy as np
 
-from Models import Generator, Discriminator, NoiseGenerator
-
-
 def allow_memory_growth():
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:
@@ -21,6 +18,11 @@ def allow_memory_growth():
         except RuntimeError as e:
             # Memory growth must be set before GPUs have been initialized
             print(e)
+#allow_memory_growth()
+from Models import Generator, Discriminator, NoiseGenerator
+
+
+
 
 
 
@@ -71,15 +73,6 @@ def gen_step_template(generator, noise):
 
   return _gen_step_template
 
-def ds(images, labels, buffer_size, batch_size):
-  images = images.reshape(images.shape[0], 28, 28, 1).astype('float32')
-  images = (images - 127.5) / 127.5
-  labels = labels.astype('int32')
-  dataset = tf.data.Dataset.from_tensor_slices((images, labels))\
-    .shuffle(buffer_size)\
-    .batch(batch_size)
-  return dataset
-
 def show_images(images):
   fig = plt.figure(figsize=(12, 12 * 10))
 
@@ -90,11 +83,21 @@ def show_images(images):
 
   plt.show()
 
+def ds(images, labels, buffer_size, batch_size):
+  images = images.reshape(images.shape[0],5,4,24,84).astype('float32')
+  images = (images - 42) / 42
+  labels = labels.astype('int32')
+  dataset = tf.data.Dataset.from_tensor_slices((images, labels))\
+    .shuffle(buffer_size)\
+    .batch(batch_size)
+  return dataset
 
-def train(train_step, gen_step, epochs, batch_size):
-    train_data, _ = tf.keras.datasets.mnist.load_data()
-    train_ds = ds(*train_data, 60000, batch_size)
 
+
+
+def train(data,labels,train_step, gen_step, epochs, batch_size):
+
+    train_ds = ds(data,labels, 1, batch_size)
     for epoch in range(epochs):
 
         for images, labels in train_ds:
@@ -102,17 +105,32 @@ def train(train_step, gen_step, epochs, batch_size):
 
         print('Epoch {0}/{1}'.format(epoch, epochs))
 
-        images = gen_step([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        show_images(images)
+        images = gen_step([0, 1])
+      #  show_images(images)
 
 
 def divide_into_bars(track,resolution,length,values):
     if track.size:
         bars = np.vsplit(track,track.shape[0]/resolution)
     else:
-        empty_track = np.zeros((length,values))
+        empty_track = np.zeros((length,84))
         bars = np.vsplit(empty_track,empty_track.shape[0]/resolution)
-    return bars
+    return np.asarray(divide_into_phrase((bars)))
+def divide_into_phrase(bars):
+    phrases = []
+    phrase=[]
+    n = 0
+    for i in range(len(bars)):
+        phrase.append(bars[i])
+        n+=1
+        if(n%4==0):
+            phrases.append(np.array(phrase))
+            phrase = []
+            n = 0
+    phrases = np.array(phrases)
+    return phrases
+
+
 
 def load_data(folder):
     data = []
@@ -124,16 +142,52 @@ def load_data(folder):
             multitrack_bar = []
             for track in sorted(pianoroll.tracks, key=lambda x: x.name):
                 #print(track.pianoroll.shape)
-                multitrack_bar.append(divide_into_bars(track.pianoroll,pianoroll.beat_resolution,duration,values))
+                phrases = divide_into_bars(track.pianoroll[:,0:84],pianoroll.beat_resolution,duration,values)
+                multitrack_bar.append(phrases)
             multitrack_bar = np.asarray(multitrack_bar)
-            multitrack_bar = multitrack_bar.transpose((1,0,2,3))
-            data.extend(multitrack_bar)
-    return np.asarray(data)
+            multitrack_bar = multitrack_bar.transpose((1,0,2,3,4))
+            data.append(multitrack_bar)
+    data = np.vstack(data)
+    return data
 # rolls = load_data('test2')
 # fig = piano.plot(rolls[1])
 # plt.show()
-d = load_data("test")
-print(np.asarray(d).shape)
+#os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
+data= load_data("test2")
+# print(np.asarray(data).shape)
+# print(sum(data))
+labels = np.ones(np.asarray(data).shape[0])
+generator = Generator()
+# generator.build((None,1))
+# print(generator.summary())
+discriminator = Discriminator()
+# discriminator.build((None,5,4,24,84))
+# print(discriminator.summary())
+noise = NoiseGenerator(2, 84)
+d_optim = tf.optimizers.Adam(1e-4)
+g_optim = tf.optimizers.Adam(1e-4)
 
+train_step = train_step_template(
+    generator=generator,
+    discriminator=discriminator,
+    noise=noise,
+    d_optim=d_optim,
+    g_optim=g_optim,
+    d_loss_f=w_discriminator_loss,
+    g_loss_f=w_generator_loss,
+)
 
+gen_step = gen_step_template(
+    generator=generator,
+    noise=noise
+)
+
+train(
+    data=data,
+    labels=labels,
+    train_step=train_step,
+    gen_step=gen_step,
+    epochs=30,
+    batch_size=256
+)

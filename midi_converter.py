@@ -16,7 +16,9 @@ def numpy_to_pianoroll(folder):
 
         for sample,i  in zip(multisample,range(multisample.shape[0])):
             tracks = []
+            classes = []
             for instrument,program,name in zip(sample,programs,names):
+
                 print(instrument.shape)
                 track = np.vstack(instrument)
                 print(track.shape)
@@ -24,8 +26,10 @@ def numpy_to_pianoroll(folder):
                 track[track < 0.5] = 0
                 print(track.shape)
                 track = np.pad(track.astype(int),((0,0),(0,44)),mode='constant')
-                print(ppr.metrics.qualified_note_rate((track),100))
+                if name !='Guitar':
+                   print(ppr.metrics.qualified_note_rate((track),2))
                 print(ppr.metrics.n_pitches_used((track)))
+                classes.append(ppr.metrics.n_pitches_used((track)))
                 print(track.shape)
                 isdrum = False
                 if program == 0:
@@ -33,6 +37,8 @@ def numpy_to_pianoroll(folder):
                 ppr_track = ppr.Track(track,program,isdrum,name)
                 tracks.append(ppr_track)
             ppr_song = ppr.Multitrack(tracks=tracks, tempo=tempo, beat_resolution=24)
+            for instrument, clasnum in zip(names,classes):
+                print(instrument+':'+str(clasnum))
 
             print(123)
             plot = ppr.plot_multitrack(ppr_song,mode='separate',ytick='off')

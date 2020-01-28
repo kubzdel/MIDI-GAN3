@@ -74,7 +74,7 @@ class Generator(tf.keras.Model):
         #tf.keras.layers.BatchNormalization(axis=1),
       #  tf.keras.layers.ReLU(),
         # #
-        tf.keras.layers.Conv3D(5, 5, 1, 'same',data_format='channels_first')
+        tf.keras.layers.Conv3D(5, 5, 1, 'same',data_format='channels_first',activation='tanh')
     ])
 
   def call(self, noise, training):
